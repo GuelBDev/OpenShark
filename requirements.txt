@@ -1,0 +1,4 @@
+hidapi>=0.15,<1
+customtkinter>=6,<7
+pystray>=0.19,<1
+pillow>=12,<13
