@@ -1,3 +1,12 @@
+Qt / PySide6 6.8.3 is used under the LGPL version 3 option.
+Copyright The Qt Company Ltd. and contributors.
+Sources: https://code.qt.io/pyside/pyside-setup and https://code.qt.io/qt/qtbase
+Licenses are included in assets/licenses. Build instructions and dependency
+versions are provided in this repository, allowing users to rebuild with
+modified compatible Qt libraries. No restriction is placed on debugging or
+replacing these LGPL libraries. The vendor mouse artwork is loaded from the
+user's existing official installation and is not bundled in the executable.
+
 PAW3311 DPI lookup table from https://github.com/HarukaYamamoto0/attack-shark-x11-driver
 
 MIT License

@@ -10,7 +10,7 @@ import sys
 import tempfile
 from urllib.request import Request, urlopen
 
-VERSION = "0.3.0"
+VERSION = "0.4.0"
 DEFAULT_REPOSITORY = "GuelBDev/OpenShark"
 SETTINGS = Path(os.environ.get("LOCALAPPDATA", Path.home())) / "OpenShark" / "updates.json"
 

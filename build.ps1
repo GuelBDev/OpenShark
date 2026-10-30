@@ -6,7 +6,7 @@ python -m PyInstaller --noconfirm --clean --onefile --windowed `
   --name OpenShark `
   --icon $iconPath `
   --add-data "$iconPath;OpenShark" `
-  --collect-all customtkinter `
+  --add-data "$PSScriptRoot\OpenShark\assets;OpenShark/assets" `
   --collect-submodules pystray `
   --distpath 'OpenShark/dist' `
   --workpath "$env:TEMP\openshark-pyinstaller-build" `

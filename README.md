@@ -55,3 +55,8 @@ A tabela PAW3311 usada no DPI do X11 é derivada de código MIT; veja [THIRD_PAR
 Em Configurações, use Verificar atualizações. O app consulta as releases públicas de GuelBDev/OpenShark, baixa OpenShark.exe e verifica o SHA-256 antes de instalar. A versão anterior é preservada como OpenShark.exe.bak.
 
 O Windows controla a área visível da bandeja: ative OpenShark.exe nas configurações da barra ou arraste o ícone para fora da seta.
+## Interface 0.4.0
+
+A interface principal usa Qt/PySide6 6.8.3: painéis com gradientes reais, bordas iluminadas, marcadores laranja, controles alinhados e uma visualização 2D com o mouse no centro. Bateria, carregamento USB, estágio de DPI físico e atualizações continuam integrados ao monitor HID.
+
+O código das telas está em `OpenShark/qt_ui.py`. A arte original é carregada da instalação local do usuário e não é distribuída no executável. Fora dessa instalação, a interface usa uma ilustração própria como alternativa. Qt/PySide6 usa a opção LGPLv3; os textos das licenças ficam em `OpenShark/assets/licenses`. Para reconstruir com bibliotecas compatíveis modificadas, altere a dependência em `requirements.txt`, instale-a e execute `build.ps1`.
