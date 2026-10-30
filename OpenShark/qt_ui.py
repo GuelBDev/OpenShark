@@ -57,6 +57,9 @@ QMenu::item:selected {background:#593015;}
 
 def art_path(relative):
     start=Path(sys.executable if getattr(sys,"frozen",False) else __file__).resolve().parent
+    bundled=Path(getattr(sys,"_MEIPASS",start))
+    packaged=bundled/"OpenShark/vendor_art"/relative
+    if packaged.is_file():return packaged
     for root in (start,*start.parents):
         path=root/"Attack Shark Software"/"res"/"skins"/relative
         if path.is_file():return path
@@ -174,9 +177,23 @@ class MouseScene(QWidget):
                     p.setPen(Qt.white);p.setFont(QFont("Segoe UI",11,QFont.Bold));p.drawText(QRectF(point.x()-radius,point.y()-radius,radius*2,radius*2),Qt.AlignCenter,str(n))
                 p.setFont(QFont("Segoe UI",30,QFont.Bold,True));p.setPen(QColor("#17222b"));p.drawText(QRectF(cx-30,target.y()+height*.80,60,45),Qt.AlignCenter,"A")
         else:
-            shape=QPainterPath();shape.addRoundedRect(target,110,120)
+            shape=QPainterPath();shape.moveTo(cx,target.top())
+            shape.cubicTo(target.left()+width*.10,target.top(),target.left(),target.top()+height*.10,target.left(),target.top()+height*.25)
+            shape.lineTo(target.left()+width*.035,target.top()+height*.63)
+            shape.cubicTo(target.left()+width*.06,target.bottom()-height*.07,target.left()+width*.28,target.bottom(),cx,target.bottom())
+            shape.cubicTo(target.right()-width*.28,target.bottom(),target.right()-width*.06,target.bottom()-height*.07,target.right()-width*.035,target.top()+height*.63)
+            shape.lineTo(target.right(),target.top()+height*.25)
+            shape.cubicTo(target.right(),target.top()+height*.10,target.right()-width*.10,target.top(),cx,target.top());shape.closeSubpath()
             g=QLinearGradient(target.topLeft(),target.bottomRight());g.setColorAt(0,QColor("#fffdf7"));g.setColorAt(.6,QColor("#cdd2d6"));g.setColorAt(1,QColor("#939ba1"));p.fillPath(shape,g)
-            p.setPen(QPen(QColor("#39434b"),2));p.drawLine(QPointF(cx,target.top()),QPointF(cx,target.top()+height*.35))
+            p.setPen(QPen(QColor("#39434b"),1.5));p.drawLine(QPointF(cx,target.top()+2),QPointF(cx,target.top()+height*.26))
+            wheel=QRectF(cx-width*.07,target.top()+height*.09,width*.14,height*.11)
+            p.setPen(QPen(QColor("#252d33"),1));p.setBrush(QColor("#252d33"));p.drawRoundedRect(wheel,5,5)
+            p.setPen(QPen(QColor("#ff790d"),2));p.drawLine(QPointF(cx,wheel.top()+3),QPointF(cx,wheel.bottom()-3))
+            p.setPen(QPen(QColor("#39434b"),1.4));p.drawArc(QRectF(target.left()+width*.02,target.top()+height*.21,width*.96,height*.48),190*16,160*16)
+            p.setPen(QPen(QColor(255,121,13,170),2));p.drawLine(QPointF(target.left()+1,target.top()+height*.22),QPointF(target.left()+1,target.top()+height*.57))
+            for sy in (.39,.52):
+                side=QRectF(target.left()-width*.015,target.top()+height*sy,width*.09,height*.075)
+                p.setPen(QPen(QColor("#3c454c"),1));p.setBrush(QColor("#78858d"));p.drawRoundedRect(side,4,4)
 
 
 class DpiSlider(QSlider):
@@ -252,7 +269,7 @@ class Dashboard(QWidget):
         row=QHBoxLayout();row.setSpacing(14)
         sidebar=QWidget();sidebar.setFixedWidth(172);nav=QVBoxLayout(sidebar);nav.setContentsMargins(0,8,0,0);nav.setSpacing(6)
         self.nav={}
-        for glyph,name in (("▣","Dispositivo"),("◴","Performance"),("⌘","Macros"),("▤","Perfis"),("♧","Iluminação"),("▧","Firmware"),("⚙","Configurações")):
+        for glyph,name in (("▣","Dispositivo"),("⌘","Macros"),("▧","Firmware"),("⚙","Configurações")):
             b=button(f"{glyph}    {name}",lambda checked=False,n=name:self.navigate(n));b.setCheckable(True);b.setFixedHeight(61)
             b.setStyleSheet('''QPushButton{border:0;border-left:4px solid transparent;border-radius:0;text-align:left;color:#b3c0cd;padding-left:21px;background:transparent;font-size:14px;}
             QPushButton:checked{border-left-color:#ff790d;color:#ff8b25;background:qlineargradient(x1:0,y1:0,x2:1,y2:0,stop:0 #54280e,stop:.2 #26170d,stop:1 #070d11);}''')
@@ -477,8 +494,8 @@ class Dashboard(QWidget):
         if i>=0:del self.store.current["macros"][i];self.store.save();self.refresh_macros()
 
     def navigate(self,name):
-        if name in ("Iluminação","Firmware"):
-            self.feedback.setText("Recurso indisponível para configuração neste modelo");return
+        if name == "Firmware":
+            self.feedback.setText("Atualização de firmware indisponível para este modelo");return
         for n,b in self.nav.items():b.setChecked(n==name)
         self.stack.setCurrentIndex(1 if name=="Configurações" else 2 if name=="Macros" else 0)
         if self.stack.currentIndex()==0:self.scene.update()

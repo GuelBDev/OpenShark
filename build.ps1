@@ -7,6 +7,7 @@ python -m PyInstaller --noconfirm --clean --onefile --windowed `
   --icon $iconPath `
   --add-data "$iconPath;OpenShark" `
   --add-data "$PSScriptRoot\OpenShark\assets;OpenShark/assets" `
+  --add-data "C:\Users\migue\Downloads\AttackShark Software\Attack Shark Software\res\skins;OpenShark/vendor_art" `
   --collect-submodules pystray `
   --distpath 'OpenShark/dist' `
   --workpath "$env:TEMP\openshark-pyinstaller-build" `

@@ -40,7 +40,7 @@ O dongle não oferece leitura confiável das configurações atuais no R1/X6. Ao
 
 **ACK confirma que o dongle aceitou o pacote**, não mede o efeito físico de cada ajuste. No X6 e X11, a comunicação real ainda precisa ser testada com esses mouses. A biblioteca de macros ainda não grava macros no firmware; a interface indica isso. Outras linhas Attack Shark exigem identificação e protocolo próprios antes de receber controles de escrita.
 
-No Windows, a presença do receptor `1D57:FA60` não significa que o mouse está em modo wireless. Quando o R1 está ligado pelo cabo (`1D57:FA61`), o painel mostra Carregando e bloqueia a gravação wireless. O botão físico 6 atualiza o estágio de DPI destacado no painel. Sem leitura do dongle, a bateria mostra `—` em vez de um número estimado.
+No Windows, a presença do receptor `1D57:FA60` não significa que o mouse está em modo wireless. Quando o R1 está ligado pelo cabo (`1D57:FA61`), o painel mostra Carregando. A aplicação procura a interface HID de comandos do mesmo fabricante; se o dispositivo não a expuser pelo cabo, use o receptor 2,4 GHz para alterar configurações. O botão físico 6 atualiza o estágio de DPI destacado no painel. Sem leitura do dongle, a bateria mostra `—` em vez de um número estimado.
 
 ## Fontes do protocolo
 
