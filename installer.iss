@@ -1,4 +1,6 @@
 ; OpenShark Windows installer (Inno Setup 6)
+; The payload is intentionally taken from the real application folder:
+; C:\Users\migue\Downloads\AttackShark Software\OpenShark\dist\OpenShark.exe
 #define AppName "OpenShark"
 #define AppVersion "0.4.0"
 #define AppPublisher "GuelBDev"
