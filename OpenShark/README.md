@@ -52,12 +52,6 @@ A tabela PAW3311 usada no DPI do X11 é derivada de código MIT; veja [THIRD_PAR
 
 ## Atualizações (v0.3.0)
 
-Em Configurações, use Verificar atualizações. O app consulta as releases públicas de GuelBDev/OpenShark, baixa o asset OpenShark.exe e verifica seu SHA-256 antes de instalar. O executável anterior é preservado como OpenShark.exe.bak. A instalação encerra e reabre o app.
+Em Configurações, use Verificar atualizações. O app consulta as releases públicas de GuelBDev/OpenShark, baixa OpenShark.exe e verifica o SHA-256 antes de instalar. A versão anterior é preservada como OpenShark.exe.bak.
 
-O Windows controla quais ícones aparecem fora da seta: abra a seta e arraste o OpenShark para a área visível, ou use Configurações da barra de tarefas.
-
-## Atualizações (v0.3.0)
-
-Em Configurações, use Verificar atualizações. O app consulta as releases públicas de GuelBDev/OpenShark, baixa o asset OpenShark.exe e verifica seu SHA-256 antes de instalar. O executável anterior é preservado como OpenShark.exe.bak. A instalação encerra e reabre o app.
-
-O Windows controla quais ícones aparecem fora da seta: abra a seta e arraste o OpenShark para a área visível, ou use Configurações da barra de tarefas.
+O Windows controla a área visível da bandeja: ative OpenShark.exe nas configurações da barra ou arraste o ícone para fora da seta.
