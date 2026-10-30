@@ -60,3 +60,8 @@ O Windows controla a área visível da bandeja: ative OpenShark.exe nas configur
 A interface principal usa Qt/PySide6 6.8.3: painéis com gradientes reais, bordas iluminadas, marcadores laranja, controles alinhados e uma visualização 2D com o mouse no centro. Bateria, carregamento USB, estágio de DPI físico e atualizações continuam integrados ao monitor HID.
 
 O código das telas está em `OpenShark/qt_ui.py`. A arte original é carregada da instalação local do usuário e não é distribuída no executável. Fora dessa instalação, a interface usa uma ilustração própria como alternativa. Qt/PySide6 usa a opção LGPLv3; os textos das licenças ficam em `OpenShark/assets/licenses`. Para reconstruir com bibliotecas compatíveis modificadas, altere a dependência em `requirements.txt`, instale-a e execute `build.ps1`.
+## Instalador Windows
+
+O instalador oficial está disponível em [Releases](https://github.com/GuelBDev/OpenShark/releases/latest).
+Para gerar uma nova versão localmente, primeiro execute `build.ps1` na pasta do aplicativo e depois compile `installer.iss` com o Inno Setup 6 (`ISCC.exe installer.iss`). O instalador resultante será criado em `dist/OpenShark-Setup-<versão>.exe`.
+
