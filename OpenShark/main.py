@@ -13,6 +13,7 @@ from OpenShark.tray import TrayService
 
 
 def main():
+    ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("GuelBDev.OpenShark")
     # A second listener can steal battery reports from the first instance.
     kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
     kernel32.CreateMutexW.restype = ctypes.c_void_p

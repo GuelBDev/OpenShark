@@ -5,9 +5,10 @@ $iconPath = Join-Path $PSScriptRoot 'OpenShark\openshark.ico'
 python -m PyInstaller --noconfirm --clean --onefile --windowed `
   --name OpenShark `
   --icon $iconPath `
+  --version-file "$PSScriptRoot\OpenShark\version_info.txt" `
   --add-data "$iconPath;OpenShark" `
   --add-data "$PSScriptRoot\OpenShark\assets;OpenShark/assets" `
-  --add-data "C:\Users\migue\Downloads\AttackShark Software\Attack Shark Software\res\skins;OpenShark/vendor_art" `
+  --add-data "$PSScriptRoot\Attack Shark Software\res\skins;OpenShark/vendor_art" `
   --collect-submodules pystray `
   --distpath 'OpenShark/dist' `
   --workpath "$env:TEMP\openshark-pyinstaller-build" `

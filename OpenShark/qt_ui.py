@@ -247,6 +247,7 @@ class Dashboard(QWidget):
         self.setStyleSheet(STYLE)
         icon=Path(getattr(sys,"_MEIPASS",Path(__file__).parent.parent))/"OpenShark/openshark.ico"
         self.setWindowIcon(QIcon(str(icon)))
+        QApplication.instance().setWindowIcon(QIcon(str(icon)))
         outer=QVBoxLayout(self);outer.setContentsMargins(0,0,0,0)
         self.back=Backdrop();outer.addWidget(self.back)
         root=QVBoxLayout(self.back);root.setContentsMargins(0,0,14,9);root.setSpacing(0)
@@ -267,23 +268,27 @@ class Dashboard(QWidget):
         header.addWidget(button("—",self.showMinimized));header.addWidget(button("×",self.close))
         root.addLayout(header)
         row=QHBoxLayout();row.setSpacing(14)
-        sidebar=QWidget();sidebar.setFixedWidth(172);nav=QVBoxLayout(sidebar);nav.setContentsMargins(0,8,0,0);nav.setSpacing(6)
+        sidebar=QWidget();sidebar.setFixedWidth(184);nav=QVBoxLayout(sidebar);nav.setContentsMargins(12,8,0,0);nav.setSpacing(6)
         self.nav={}
-        for glyph,name in (("▣","Dispositivo"),("⌘","Macros"),("▧","Firmware"),("⚙","Configurações")):
-            b=button(f"{glyph}    {name}",lambda checked=False,n=name:self.navigate(n));b.setCheckable(True);b.setFixedHeight(61)
-            b.setStyleSheet('''QPushButton{border:0;border-left:4px solid transparent;border-radius:0;text-align:left;color:#b3c0cd;padding-left:21px;background:transparent;font-size:14px;}
+        for glyph,name in (("▣","Dispositivo"),("⌘","Macros"),("⚙","Configurações")):
+            b=button(name,lambda checked=False,n=name:self.navigate(n));b.setCheckable(True);b.setFixedHeight(61)
+            icon_pixmap=QPixmap(20,20);icon_pixmap.fill(Qt.transparent)
+            painter=QPainter(icon_pixmap);painter.setPen(QColor("#b3c0cd"));painter.setFont(QFont("Segoe UI Symbol",15))
+            painter.drawText(icon_pixmap.rect(),Qt.AlignCenter,glyph);painter.end()
+            b.setIcon(QIcon(icon_pixmap));b.setIconSize(icon_pixmap.size())
+            b.setStyleSheet('''QPushButton{border:0;border-left:4px solid transparent;border-radius:0;text-align:left;color:#b3c0cd;padding-left:19px;background:transparent;font-size:14px;}
             QPushButton:checked{border-left-color:#ff790d;color:#ff8b25;background:qlineargradient(x1:0,y1:0,x2:1,y2:0,stop:0 #54280e,stop:.2 #26170d,stop:1 #070d11);}''')
             nav.addWidget(b);self.nav[name]=b
-        nav.addStretch();promo=Panel();promo.setFixedHeight(214)
-        promo.box.addStretch();promo.box.addWidget(label("R1",43,ORANGE,True));promo.box.addWidget(label("SÉRIE",21,"#526272",True));promo.box.addWidget(label("ULTRA\nPERFORMANCE",14,"#aebdca"));nav.addWidget(promo)
+        nav.addStretch()
         row.addWidget(sidebar)
         self.stack=QStackedWidget();row.addWidget(self.stack,1);root.addLayout(row,1)
         self.home=self.build_home();self.stack.addWidget(self.home)
         self.settings=self.build_settings();self.stack.addWidget(self.settings)
         self.macros=self.build_macros();self.stack.addWidget(self.macros)
-        self.feedback=label("",11,"#93a7b8");self.feedback.setContentsMargins(190,3,0,0);root.addWidget(self.feedback)
+        self.feedback=label("",11,"#93a7b8");self.feedback.setContentsMargins(198,3,0,0);root.addWidget(self.feedback)
         self.navigate("Dispositivo");self.render(self.monitor.snapshot())
         self.timer=QTimer(self);self.timer.timeout.connect(self.tick);self.timer.start(150)
+        QTimer.singleShot(1000, lambda: self.check_updates(automatic=True))
 
     def mousePressEvent(self,event):
         if event.button()==Qt.LeftButton and event.position().y()<80:self.windowHandle().startSystemMove()
@@ -494,18 +499,16 @@ class Dashboard(QWidget):
         if i>=0:del self.store.current["macros"][i];self.store.save();self.refresh_macros()
 
     def navigate(self,name):
-        if name == "Firmware":
-            self.feedback.setText("Atualização de firmware indisponível para este modelo");return
         for n,b in self.nav.items():b.setChecked(n==name)
         self.stack.setCurrentIndex(1 if name=="Configurações" else 2 if name=="Macros" else 0)
         if self.stack.currentIndex()==0:self.scene.update()
         if name=="Macros":self.refresh_macros()
 
-    def check_updates(self):
+    def check_updates(self, automatic=False):
         repo=self.repo.text();self.check_button.setEnabled(False);self.install_button.setEnabled(False);self.update_label.setText("Consultando GitHub…")
         def work():
-            try:self.update_queue.put(("check",True,updates.check(repo)))
-            except Exception as e:self.update_queue.put(("check",False,str(e)))
+            try:self.update_queue.put(("automatic" if automatic else "check",True,updates.check(repo)))
+            except Exception as e:self.update_queue.put(("automatic" if automatic else "check",False,str(e)))
         Thread(target=work,daemon=True).start()
     def install_update(self):
         if not self.release:return
@@ -547,7 +550,9 @@ class Dashboard(QWidget):
                 except Exception as e:self.update_label.setText(str(e))
             else:
                 self.check_button.setEnabled(True)
-                if success:self.release=data;self.update_label.setText(f"Versão {data['tag']} disponível" if data else "Você está na versão mais recente");self.install_button.setEnabled(bool(data))
+                if success:
+                    self.release=data;self.update_label.setText(f"Versão {data['tag']} disponível" if data else "Você está na versão mais recente");self.install_button.setEnabled(bool(data))
+                    if kind=="automatic" and data and QMessageBox.question(self,"Atualização disponível",f"OpenShark {data['tag']} está disponível. Deseja atualizar agora?",QMessageBox.Yes|QMessageBox.No,QMessageBox.No)==QMessageBox.Yes:self.install_update()
                 else:self.update_label.setText(str(data))
 
     def closeEvent(self,event):

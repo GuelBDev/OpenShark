@@ -2,7 +2,7 @@
 ; The payload is intentionally taken from the real application folder:
 ; C:\Users\migue\Downloads\AttackShark Software\OpenShark\dist\OpenShark.exe
 #define AppName "OpenShark"
-#define AppVersion "0.5.0"
+#define AppVersion "0.6.0"
 #define AppPublisher "GuelBDev"
 #define AppExeName "OpenShark.exe"
 #define AppSource "OpenShark\dist\OpenShark.exe"
@@ -12,9 +12,15 @@ AppId={{A9F6A6C8-73A4-4FC4-9E63-6C0A8B8B0F40}
 AppName={#AppName}
 AppVersion={#AppVersion}
 AppPublisher={#AppPublisher}
+VersionInfoCompany={#AppPublisher}
+VersionInfoDescription=OpenShark Windows Installer
+VersionInfoVersion={#AppVersion}
+VersionInfoProductName={#AppName}
+VersionInfoProductVersion={#AppVersion}
+SetupIconFile=OpenShark\openshark.ico
 DefaultDirName={autopf}\OpenShark
 DefaultGroupName=OpenShark
-OutputDir=dist
+OutputDir=OpenShark\dist
 OutputBaseFilename=OpenShark-Setup-{#AppVersion}
 Compression=lzma2
 SolidCompression=yes
@@ -35,6 +41,3 @@ Name: "desktopicon"; Description: "Criar atalho na área de trabalho"; GroupDesc
 
 [Run]
 Filename: "{app}\{#AppExeName}"; Description: "Iniciar o OpenShark"; Flags: nowait postinstall skipifsilent
-
-[UninstallRun]
-Filename: "{cmd}"; Parameters: "/C taskkill /IM {#AppExeName} /F"; Flags: runhidden waituntilterminated

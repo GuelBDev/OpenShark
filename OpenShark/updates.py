@@ -10,7 +10,7 @@ import sys
 import tempfile
 from urllib.request import Request, urlopen
 
-VERSION = "0.5.0"
+VERSION = "0.6.0"
 DEFAULT_REPOSITORY = "GuelBDev/OpenShark"
 SETTINGS = Path(os.environ.get("LOCALAPPDATA", Path.home())) / "OpenShark" / "updates.json"
 
@@ -45,22 +45,25 @@ def check(value):
     SETTINGS.write_text(json.dumps({"repository": repo}), encoding="utf-8")
     if version(release["tag_name"]) <= version(VERSION):
         return None
-    asset = next((a for a in release.get("assets", []) if a["name"].lower() == "openshark.exe"), None)
+    setup_name = "OpenShark-Setup-" + ".".join(map(str, version(release["tag_name"]))) + ".exe"
+    asset = next((a for a in release.get("assets", []) if a["name"].lower() == setup_name.lower()), None)
     if not asset:
-        raise ValueError("A release não contém OpenShark.exe")
+        asset = next((a for a in release.get("assets", []) if a["name"].lower() == "openshark.exe"), None)
+    if not asset:
+        raise ValueError("A release não contém um instalador ou OpenShark.exe")
     expected = f"https://github.com/{repo}/releases/download/"
     if not asset.get("browser_download_url", "").startswith(expected):
         raise ValueError("Endereço de download inválido")
     digest = asset.get("digest") or ""
     if not re.fullmatch(r"sha256:[0-9a-f]{64}", digest):
         raise ValueError("A release não informa o SHA-256 do executável")
-    return {"tag": release["tag_name"], "url": asset["browser_download_url"],
+    return {"tag": release["tag_name"], "name": asset["name"], "url": asset["browser_download_url"],
             "sha256": digest[7:], "size": asset.get("size", 0)}
 
 
 def download(release):
     folder = Path(tempfile.mkdtemp(prefix="OpenShark-update-"))
-    target = folder / "OpenShark.exe"
+    target = folder / release.get("name", "OpenShark.exe")
     digest = hashlib.sha256()
     total = 0
     with urlopen(Request(release["url"], headers={"User-Agent": "OpenShark/"+VERSION}), timeout=30) as response, target.open("wb") as stream:
@@ -79,6 +82,9 @@ def download(release):
 def install(staged):
     if not getattr(sys, "frozen", False):
         raise ValueError("Use o executável portátil para instalar atualizações")
+    if staged.name.lower().startswith("openshark-setup-"):
+        os.startfile(str(staged), "runas")
+        return
     quote = lambda path: "'" + str(path).replace("'", "''") + "'"
     target = Path(sys.executable).resolve()
     backup = target.with_suffix(".exe.bak")
