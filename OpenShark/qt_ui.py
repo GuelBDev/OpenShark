@@ -13,9 +13,10 @@ from PySide6.QtGui import (QColor, QPainter, QPen, QBrush, QLinearGradient,
 from PySide6.QtWidgets import (QApplication, QWidget, QFrame, QLabel, QPushButton,
     QVBoxLayout, QHBoxLayout, QGridLayout, QComboBox, QSpinBox, QSlider,
     QStackedWidget, QScrollArea, QCheckBox, QInputDialog, QFileDialog,
-    QMessageBox, QMenu, QPlainTextEdit, QLineEdit)
+    QMessageBox, QMenu, QPlainTextEdit, QLineEdit, QDialog, QDialogButtonBox)
 from .profiles import ProfileStore, BUTTON_ACTIONS, default_profile, validate_profile
 from .autostart import is_autostart_enabled, set_autostart
+from .preferences import save as save_preferences
 from . import updates
 
 ORANGE = "#ff790d"
@@ -237,9 +238,10 @@ class DpiInput(QLineEdit):
 
 
 class Dashboard(QWidget):
-    def __init__(self,monitor,show_request,exit_request,on_close):
-        super().__init__();self.monitor=monitor;self.show_request=show_request;self.exit_request=exit_request;self.on_close=on_close
-        self.store=ProfileStore();self.minimize_to_tray=True;self.last=None;self.stage_seen=None;self.busy=False
+    def __init__(self,monitor,show_request,exit_request,on_close,set_tray_enabled=lambda enabled:None,preferences=None):
+        super().__init__();self.monitor=monitor;self.show_request=show_request;self.exit_request=exit_request;self.on_close=on_close;self.set_tray_enabled=set_tray_enabled
+        self.preferences=preferences or {"onboarding_complete":True,"start_with_windows":is_autostart_enabled(),"battery_in_taskbar":True}
+        self.store=ProfileStore();self.minimize_to_tray=self.preferences["battery_in_taskbar"];self.last=None;self.stage_seen=None;self.busy=False;self.pending_dpi=None
         self.update_queue=Queue();self.release=None
         self.setWindowFlags(Qt.Window|Qt.FramelessWindowHint)
         self.setWindowTitle("ATTACK SHARK — OpenShark")
@@ -289,6 +291,7 @@ class Dashboard(QWidget):
         self.navigate("Dispositivo");self.render(self.monitor.snapshot())
         self.timer=QTimer(self);self.timer.timeout.connect(self.tick);self.timer.start(150)
         QTimer.singleShot(1000, lambda: self.check_updates(automatic=True))
+        QTimer.singleShot(350, self.show_onboarding)
 
     def mousePressEvent(self,event):
         if event.button()==Qt.LeftButton and event.position().y()<80:self.windowHandle().startSystemMove()
@@ -341,7 +344,7 @@ class Dashboard(QWidget):
             spin.valueChanged.connect(lambda n,s=slider,l=title:(s.setValue(n),l.setText(str(n))))
             col.addWidget(spin);self.dpi_values.append(spin);self.dpi_sliders.append(slider);stages.addLayout(col,1)
         dpi.box.addWidget(stageframe)
-        actions=QHBoxLayout();actions.addWidget(button("◎                     Aplicar ao mouse",self.apply_dpi),1);actions.addWidget(button("↶",self.reset_dpi));dpi.box.addLayout(actions);right.addWidget(dpi)
+        actions=QHBoxLayout();self.apply_button=button("Aplicar DPI ao mouse",self.apply_dpi,True);actions.addWidget(self.apply_button,1);actions.addWidget(button("↶",self.reset_dpi));dpi.box.addLayout(actions);right.addWidget(dpi)
         polling=Panel("Taxa de Polling (Hz)");rates=QHBoxLayout();self.poll_buttons={}
         for rate in (125,250,500,1000):
             b=button(str(rate),lambda checked=False,r=rate:self.poll(r));b.setCheckable(True);rates.addWidget(b,1);self.poll_buttons[rate]=b
@@ -358,7 +361,7 @@ class Dashboard(QWidget):
         self.sleep=QSlider(Qt.Horizontal);self.sleep.setRange(1,120)
         sleep_row=QHBoxLayout();sleep_row.addWidget(label("Tempo para dormir",12,"#a6b9cc"));sleep_row.addWidget(self.sleep,1);self.sleep_label=label("5 min",12);sleep_row.addWidget(self.sleep_label)
         self.sleep.valueChanged.connect(lambda value:self.sleep_label.setText(f"{value/2:g} min"));self.sleep.sliderReleased.connect(self.apply_power);power.box.addLayout(sleep_row)
-        deep=QHBoxLayout();deep.addWidget(label("Sono profundo",12,"#a6b9cc"));self.deep_sleep=QSpinBox();self.deep_sleep.setRange(1,60);self.deep_sleep.setSuffix(" min");deep.addWidget(self.deep_sleep);deep.addStretch();deep.addWidget(button("Aplicar energia",self.apply_power));power.box.addLayout(deep)
+        deep=QHBoxLayout();deep.addWidget(label("Sono profundo",12,"#a6b9cc"));self.deep_sleep=QSpinBox();self.deep_sleep.setRange(1,60);self.deep_sleep.setFixedWidth(62);deep.addWidget(self.deep_sleep);deep.addWidget(label("minutos",12,"#a6b9cc"));deep.addStretch();deep.addWidget(button("Aplicar energia",self.apply_power));power.box.addLayout(deep)
         right.addWidget(power);right.addStretch()
         rightw=QWidget();rightw.setLayout(right);layout.addWidget(rightw,36)
         self.load_profile();return home
@@ -399,7 +402,10 @@ class Dashboard(QWidget):
 
     def apply_dpi(self):
         p=dict(self.store.current);p["dpi"]=[s.value() for s in self.dpi_values]
-        try:self.store.current.update(validate_profile(p));self.store.save();self.apply("dpi")
+        try:
+            validated=validate_profile(p)
+            if self.apply("dpi",validated):
+                self.pending_dpi=(self.store.model,self.store.index,validated)
         except ValueError as e:self.feedback.setText(str(e))
 
     def reset_dpi(self):
@@ -415,10 +421,17 @@ class Dashboard(QWidget):
     def apply_power(self):
         self.store.current.update(response=int(self.response.currentText().split()[0]),sleep=self.sleep.value()/2,deep_sleep=self.deep_sleep.value());self.store.save();self.apply("power")
 
-    def apply(self,section):
-        if self.busy:return
-        try:self.monitor.apply(self.store.current,section);self.busy=True;self.feedback.setText("Enviando ajustes ao mouse…")
-        except Exception as e:self.feedback.setText(str(e))
+    def apply(self,section,profile=None):
+        if self.busy:
+            self.feedback.setText("Aguarde o ajuste anterior terminar")
+            return False
+        try:
+            self.monitor.apply(profile if profile is not None else self.store.current,section)
+            self.busy=True;self.apply_button.setEnabled(False);self.feedback.setText("Enviando ajustes ao mouse…")
+            return True
+        except Exception as e:
+            self.feedback.setText(str(e))
+            return False
 
     def choose_profile(self,i):self.store.select(i);self.load_profile();self.fill_profiles()
     def new_profile(self):
@@ -456,15 +469,55 @@ class Dashboard(QWidget):
         page=QWidget();box=QVBoxLayout(page);box.setContentsMargins(25,20,25,20)
         box.addWidget(label("Configurações",28,bold=True))
         panel=Panel("Inicialização e bandeja")
-        auto=QCheckBox("Iniciar com o Windows");auto.setChecked(is_autostart_enabled());auto.toggled.connect(set_autostart);panel.box.addWidget(auto)
-        tray=QCheckBox("Fechar para a bandeja");tray.setChecked(True);tray.toggled.connect(lambda value:setattr(self,"minimize_to_tray",value));panel.box.addWidget(tray)
-        panel.box.addWidget(label("Aviso do Windows em 10% de bateria",14,"#a1b4c5"));panel.box.addWidget(button("Configurações da barra de tarefas",lambda:os.startfile("ms-settings:taskbar")));box.addWidget(panel)
+        self.auto_start=QCheckBox("Iniciar com o Windows");self.auto_start.setChecked(self.preferences["start_with_windows"]);self.auto_start.toggled.connect(self.set_auto_start);panel.box.addWidget(self.auto_start)
+        self.taskbar_battery=QCheckBox("Exibir bateria na área de notificação");self.taskbar_battery.setChecked(self.preferences["battery_in_taskbar"]);self.taskbar_battery.toggled.connect(self.set_taskbar_battery);panel.box.addWidget(self.taskbar_battery)
+        panel.box.addWidget(label("A bateria é atualizada automaticamente na área de notificação do Windows.",14,"#a1b4c5"));box.addWidget(panel)
         update=Panel(f"Atualizações • OpenShark {updates.VERSION}")
         from PySide6.QtWidgets import QLineEdit
         self.repo=QLineEdit(updates.saved_repository());update.box.addWidget(self.repo)
         self.update_label=label("GitHub Releases",13,"#a1b4c5");update.box.addWidget(self.update_label)
         actions=QHBoxLayout();self.check_button=button("Verificar atualizações",self.check_updates);self.install_button=button("Baixar e instalar",self.install_update,True);self.install_button.setEnabled(False);actions.addWidget(self.check_button);actions.addWidget(self.install_button);update.box.addLayout(actions);box.addWidget(update)
         box.addStretch();box.addWidget(button("Sair do OpenShark",self.on_close));return page
+
+    def save_preferences(self):
+        self.preferences["onboarding_complete"]=True
+        self.preferences=save_preferences(self.preferences)
+
+    def set_auto_start(self,enabled):
+        if set_autostart(enabled):
+            self.preferences["start_with_windows"]=enabled;self.save_preferences()
+        else:
+            self.feedback.setText("Não foi possível alterar a inicialização do Windows")
+            self.auto_start.blockSignals(True);self.auto_start.setChecked(not enabled);self.auto_start.blockSignals(False)
+
+    def set_taskbar_battery(self,enabled):
+        self.preferences["battery_in_taskbar"]=enabled
+        self.minimize_to_tray=enabled
+        self.set_tray_enabled(enabled)
+        self.save_preferences()
+
+    def show_onboarding(self):
+        if self.preferences["onboarding_complete"]:
+            return
+        dialog=QDialog(self);dialog.setWindowTitle("Configuração inicial");dialog.setModal(True);dialog.setMinimumWidth(440)
+        box=QVBoxLayout(dialog);box.addWidget(label("Como você quer usar o OpenShark?",22,bold=True))
+        box.addWidget(label("Você poderá mudar estas opções depois em Configurações.",13,"#a1b4c5"))
+        start=QCheckBox("Iniciar o OpenShark junto com o Windows");start.setChecked(True);box.addWidget(start)
+        battery=QCheckBox("Exibir a bateria na área de notificação do Windows");battery.setChecked(True);box.addWidget(battery)
+        buttons=QDialogButtonBox(QDialogButtonBox.Save);buttons.accepted.connect(dialog.accept);box.addWidget(buttons)
+        if dialog.exec()!=QDialog.Accepted:
+            return
+        self.preferences["start_with_windows"]=start.isChecked()
+        self.preferences["battery_in_taskbar"]=battery.isChecked()
+        if not set_autostart(start.isChecked()):
+            self.preferences["start_with_windows"]=False
+            self.feedback.setText("A inicialização com o Windows não pôde ser configurada")
+        self.minimize_to_tray=battery.isChecked()
+        self.set_tray_enabled(battery.isChecked())
+        self.save_preferences()
+        if hasattr(self,"auto_start"):
+            self.auto_start.blockSignals(True);self.auto_start.setChecked(self.preferences["start_with_windows"]);self.auto_start.blockSignals(False)
+            self.taskbar_battery.blockSignals(True);self.taskbar_battery.setChecked(self.preferences["battery_in_taskbar"]);self.taskbar_battery.blockSignals(False)
 
     def build_macros(self):
         page=QWidget();box=QVBoxLayout(page);box.setContentsMargins(25,20,25,20);box.addWidget(label("Macros",28,bold=True))
@@ -541,7 +594,13 @@ class Dashboard(QWidget):
         state=self.monitor.snapshot()
         if state!=self.last:self.render(state);self.last=state
         while result:=self.monitor.poll_result():
-            self.busy=False;self.feedback.setText(result[2])
+            self.busy=False;self.apply_button.setEnabled(True)
+            if result[0]=="dpi" and self.pending_dpi:
+                model,index,profile=self.pending_dpi
+                if result[1] and self.store.model==model and self.store.index==index:
+                    self.store.current.update(profile);self.store.save()
+                self.pending_dpi=None
+            self.feedback.setText(result[2])
         while True:
             try:kind,success,data=self.update_queue.get_nowait()
             except Empty:break

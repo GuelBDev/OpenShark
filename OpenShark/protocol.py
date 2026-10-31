@@ -32,10 +32,27 @@ def checksum(buf, start, end, high):
     return bytes(buf)
 
 
+# Exact PAW3311 R1 values from xb-bx/attack-shark-r1-driver/dpi.odin.
+R1_DPI_CODES = bytes.fromhex(
+    "02 04 06 09 0b 0e 10 12 15 17 19 1c 1e 20 23 25 "
+    "27 2a 2c 2f 31 33 36 38 3a 3d 3f 41 44 46 48 4b "
+    "4d 4f 52 54 57 59 5b 5e 60 62 65 67 69 6c 6e 70 "
+    "73 75 77 7a 7c 7f 81 83 86 88 8a 8d 8f 91 94 96 "
+    "98 9b 9d 9f a2 a4 a7 a9 ab ae b0 b2 b5 b7 b9 bc "
+    "be c0 c3 c5 c7 ca cc cf d1 d3 d6 d8 da dd df e1 "
+    "e4 e6 e8 eb 76 77 79 7a 7b 7c 7d 7f 80 81 82 83 "
+    "84 86 87 88 89 8a 8b 8d 8e 8f 90 91 93 94 95 96 "
+    "97 98 9a 9b 9c 9d 9e 9f a1 a2 a3 a4 a5 a7 a8 a9 "
+    "aa ab ac ae af b0 b1 b2 b3 b5 b6 b7 b8 b9 bb bc "
+    "bd be bf c0 c2 c3 c4 c5 c6 c7 c9 ca cb cc cd cf "
+    "d0 d1 d2 d3"
+)
+
+
 def r1_dpi_code(dpi):
-    index = dpi // 100 - 1
-    code = (2, 4, 6, 9, 11, 14)[index] if index < 6 else 14 + ((index - 6 + 1) // 3) + (index - 6 + 1) * 2
-    return code & 0xff
+    if not 100 <= dpi <= 18000 or dpi % 100:
+        raise ValueError("DPI R1 fora do intervalo ou passo de 100")
+    return R1_DPI_CODES[dpi // 100 - 1]
 
 
 def x11_dpi_code(dpi):
@@ -63,6 +80,10 @@ def build_dpi(profile):
             if dpi > 12000:
                 high |= 1 << i
         buf[6] = buf[7] = high
+        buf[3] = int(profile["angle_snap"])
+        buf[4] = int(profile["ripple"])
+        buf[24] = profile["active_stage"]
+        return checksum(buf, 3, 50, 50)
     elif model == "X6":
         buf[0:3] = b"\x04\x38\x01"
         buf[5], buf[7], buf[49] = 0x3f, 1, 1
@@ -83,15 +104,41 @@ def build_dpi(profile):
             buf[8 + i], buf[16 + i] = x, y
             if doubled:
                 buf[6] |= 1 << i
-    buf[3] = int(profile["angle_snap"])
-    buf[4] = int(profile["ripple"])
-    buf[24] = profile["active_stage"]
+    buf[0] = 0x04
+    buf[1] = 0x38
+    buf[2] = profile.get("active_stage", 1)
+    buf[5] = 0x3F
+
+    # Polling rate code at byte 24: 0 = 125Hz, 1 = 250Hz, 2 = 500Hz, 3 = 1000Hz
+    poll_rate = profile.get("polling", 1000)
+    buf[24] = {125: 0, 250: 1, 500: 2, 1000: 3}.get(poll_rate, 3)
+
+    # LOD in byte 46 (1 or 2 mm)
+    buf[46] = profile.get("lod_mm", 1)
+
+    # Flags in byte 48 (Motion Sync bit 0, Ripple bit 1, Angle Snap bit 2)
+    flags = 0x01 if profile.get("motion_sync", True) else 0x00
+    if profile.get("ripple", False):
+        flags |= 0x02
+    if profile.get("angle_snap", False):
+        flags |= 0x04
+    buf[48] = flags
+
+    # Debounce delay in byte 49
+    debounce = profile.get("response", 8)
+    if not (1 <= debounce <= 20):
+        debounce = 8
+    buf[49] = debounce
+
     return checksum(buf, 3, 50, 50)
 
 
 def build_polling(profile):
-    code = {125: 8, 250: 4, 500: 2, 1000: 1}[profile["polling"]]
-    return bytes((6, 9, 1, code, 0xff - code, 0, 0, 0, 0))
+    if profile["model"] == "R1":
+        codes = {125: (0x08, 0xF7), 250: (0x04, 0xFB),
+                 500: (0x02, 0xFD), 1000: (0x01, 0xFE)}
+        return bytes((0x06, 0x09, 0x01, *codes[profile["polling"]], 0, 0, 0, 0))
+    return build_dpi(profile)
 
 
 def build_power(profile):
@@ -127,7 +174,7 @@ def reports_for(profile, section="all"):
     report = {"dpi": build_dpi, "polling": build_polling,
               "power": build_power, "buttons": build_buttons}
     if section == "all":
-        sections = ("polling", "dpi", "power", "buttons")
+        sections = ("dpi", "polling", "power", "buttons") if profile["model"] == "R1" else ("dpi", "power", "buttons")
     else:
         sections = (section,)
     return [report[key](profile) for key in sections]

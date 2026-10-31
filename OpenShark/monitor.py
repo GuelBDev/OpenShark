@@ -96,7 +96,7 @@ class MouseMonitor:
         self._thread: Optional[Thread] = None
         self._write_lock = Lock()
         self._ack_lock = Lock()
-        self._ack_expected = None
+        self._awaiting_ack = False
         self._ack_event = Event()
         self._results = Queue()
         self._identity_path = Path(os.environ.get("LOCALAPPDATA", Path.home())) / "OpenShark" / "devices.json"
@@ -164,14 +164,25 @@ class MouseMonitor:
                 device = self._hid.device()
                 device.open_path(candidates[0]["path"])
                 for report in reports:
+                    with self._ack_lock:
+                        self._ack_event.clear()
+                        self._awaiting_ack = not state.wired
                     count = device.send_feature_report(report)
-                    if count < 0:
+                    if count != len(report):
                         raise RuntimeError(f"Falha na escrita HID para o relatório {report[0]:02X}")
+                    if not state.wired and not self._ack_event.wait(1.5):
+                        raise RuntimeError(f"Receptor não confirmou o relatório {report[0]:02X}")
+                    with self._ack_lock:
+                        self._awaiting_ack = False
                     time.sleep(0.04)
-                self._results.put((section, True, "Ajustes salvos na memória EEPROM do mouse!"))
+                message = ("Comando enviado pelo USB; confirme o efeito no mouse" if state.wired
+                           else "Receptor confirmou os ajustes; confira o efeito no mouse")
+                self._results.put((section, True, message))
             except Exception as exc:
                 self._results.put((section, False, str(exc)))
             finally:
+                with self._ack_lock:
+                    self._awaiting_ack = False
                 if device:
                     try:
                         device.close()
@@ -250,7 +261,7 @@ class MouseMonitor:
                         self._set_state(state)
                     if raw and len(raw) >= 5 and raw[0] == 3 and raw[2] == 0x50:
                         with self._ack_lock:
-                            if raw[4] == self._ack_expected:
+                            if self._awaiting_ack:
                                 self._ack_event.set()
                     parsed = parse_battery_event(raw) if raw else None
                     if parsed:

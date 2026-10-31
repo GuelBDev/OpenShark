@@ -27,7 +27,7 @@ $app = Join-Path $PSScriptRoot 'OpenShark\dist\OpenShark.exe'
 if ($LASTEXITCODE -ne 0) { throw 'Falha ao assinar OpenShark.exe' }
 & $iscc "$PSScriptRoot\installer.iss"
 if ($LASTEXITCODE -ne 0) { throw 'Falha ao gerar o instalador' }
-$setup = Join-Path $PSScriptRoot 'OpenShark\dist\OpenShark-Setup-0.6.0.exe'
+$setup = Join-Path $PSScriptRoot 'OpenShark\dist\OpenShark-Setup-0.6.1.exe'
 & $signTool sign /sha1 $thumbprint /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 $setup
 if ($LASTEXITCODE -ne 0) { throw 'Falha ao assinar o instalador' }
 foreach ($file in @($app, $setup)) {
@@ -36,4 +36,4 @@ foreach ($file in @($app, $setup)) {
         throw "Assinatura invalida: $file ($($signature.Status))"
     }
 }
-Write-Host "Release 0.6.0 assinada: $setup"
+Write-Host "Release 0.6.1 assinada: $setup"

@@ -50,7 +50,7 @@ No Windows, a presença do receptor `1D57:FA60` não significa que o mouse está
 
 A tabela PAW3311 usada no DPI do X11 é derivada de código MIT; veja [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md). A arte do mouse exibida no painel é carregada da pasta do software oficial já presente no computador, se disponível; não é incluída no executável. O OpenShark não é afiliado à Attack Shark.
 
-## Atualizações (v0.6.0)
+## Atualizações (v0.6.1)
 
 Em Configurações, use Verificar atualizações. O app consulta as releases públicas de GuelBDev/OpenShark, baixa OpenShark.exe e verifica o SHA-256 antes de instalar. A versão anterior é preservada como OpenShark.exe.bak.
 

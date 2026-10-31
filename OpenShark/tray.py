@@ -50,6 +50,8 @@ class TrayService:
         self._alert = LowBatteryAlert()
 
     def start(self):
+        if self._icon_thread and self._icon_thread.is_alive():
+            return
         self._stop.clear()
         self._icon_thread = Thread(target=self._run_icon, daemon=True)
         self._refresh_thread = Thread(target=self._refresh, daemon=True)
@@ -62,6 +64,12 @@ class TrayService:
             self.icon.stop()
         if self._refresh_thread and self._refresh_thread.is_alive():
             self._refresh_thread.join(timeout=2)
+
+    def set_enabled(self, enabled: bool):
+        if enabled:
+            self.start()
+        else:
+            self.stop()
 
     def _run_icon(self):
         menu = Menu(

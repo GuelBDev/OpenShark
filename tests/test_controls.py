@@ -1,11 +1,13 @@
 import json
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 from OpenShark.profiles import ProfileStore, default_profile, validate_profile
 from OpenShark.protocol import (build_buttons, build_dpi, build_polling,
                                 build_power, reports_for)
+from OpenShark.monitor import BatteryState, MouseMonitor
 
 
 class ProtocolTests(unittest.TestCase):
@@ -17,12 +19,17 @@ class ProtocolTests(unittest.TestCase):
                 buttons = build_buttons(profile)
                 polling = build_polling(profile)
                 self.assertEqual((len(dpi), dpi[:3]),
-                                 (56, bytes((0x04, 0x38, profile["active_stage"]))))
+                                 (56, bytes((0x04, 0x38, 1 if model == "R1"
+                                             else profile["active_stage"]))))
                 self.assertEqual(int.from_bytes(dpi[50:52], "big"), sum(dpi[3:50]))
                 self.assertEqual((len(buttons), buttons[:3]), (59, b"\x08\x3b\x01"))
                 self.assertEqual(int.from_bytes(buttons[57:59], "big"), sum(buttons[3:57]))
-                self.assertEqual(polling, dpi)
-                self.assertEqual(len(reports_for(profile)), 3)
+                if model == "R1":
+                    self.assertEqual(polling, bytes.fromhex("06 09 01 01 fe 00 00 00 00"))
+                    self.assertEqual(len(reports_for(profile)), 4)
+                else:
+                    self.assertEqual(polling, dpi)
+                    self.assertEqual(len(reports_for(profile)), 3)
                 power = build_power(profile)
                 self.assertEqual(len(power), 13 if model == "X6" else 15)
                 self.assertEqual(int.from_bytes(power[11:13], "big"), sum(power[3:11]))
@@ -36,6 +43,36 @@ class ProtocolTests(unittest.TestCase):
         self.assertEqual(x6[21], 2)  # 26000 DPI high byte
         self.assertNotEqual(r1[8:14], x6[8:14])
         self.assertEqual(x11[6], 0x20)  # sixth stage uses double multiplier
+
+    def test_r1_extreme_stages_match_documented_wire_codes(self):
+        profile = default_profile("R1")
+        profile["dpi"][:2] = [100, 18000]
+        profile["active_stage"] = 2
+        profile["angle_snap"] = True
+        profile["ripple"] = True
+        report = build_dpi(profile)
+        self.assertEqual(report[2], 1)  # protocol command, not active stage
+        self.assertEqual(report[3:5], b"\x01\x01")
+        self.assertEqual(report[6:8], b"\x02\x02")
+        self.assertEqual(report[8:10], b"\x02\xd3")
+        self.assertEqual(report[24], 2)
+        self.assertEqual(int.from_bytes(report[50:52], "big"), sum(report[3:50]))
+
+    def test_write_without_receiver_ack_is_failure(self):
+        class Device:
+            def open_path(self, path): pass
+            def send_feature_report(self, report): return len(report)
+            def close(self): pass
+        class HID:
+            def enumerate(self): return [{"usage_page": 0x0b, "vendor_id": 0x1d57,
+                                          "product_id": 0xfa60, "path": b"command"}]
+            def device(self): return Device()
+        monitor = MouseMonitor(HID())
+        monitor._set_state(BatteryState(connected=True, vid=0x1d57,
+                                        pid=0xfa60, model="R1"))
+        with patch.object(monitor._ack_event, "wait", return_value=False):
+            monitor._write_reports("R1", "dpi", [build_dpi(default_profile("R1"))])
+        self.assertEqual(monitor.poll_result()[1], False)
 
     def test_power_and_button_values(self):
         p = default_profile("R1")
