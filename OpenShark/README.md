@@ -50,11 +50,16 @@ No Windows, a presença do receptor `1D57:FA60` não significa que o mouse está
 
 A tabela PAW3311 usada no DPI do X11 é derivada de código MIT; veja [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md). A arte do mouse exibida no painel é carregada da pasta do software oficial já presente no computador, se disponível; não é incluída no executável. O OpenShark não é afiliado à Attack Shark.
 
-## Atualizações (v0.6.2)
+## Atualizações (v0.6.3)
 
 Em Configurações, use Verificar atualizações. O app consulta as releases públicas de GuelBDev/OpenShark, baixa OpenShark.exe e verifica o SHA-256 antes de instalar. A versão anterior é preservada como OpenShark.exe.bak.
 
 O Windows controla a área visível da bandeja: ative OpenShark.exe nas configurações da barra ou arraste o ícone para fora da seta.
+
+Quando o painel é minimizado ou ocultado na bandeja, o OpenShark libera as
+páginas da interface da memória residente. O monitor de bateria, os atalhos e
+o ícone da bandeja continuam ativos; ao abrir o painel novamente, o Windows
+recarrega somente o que for necessário.
 
 ## Empacotamento para publicação
 

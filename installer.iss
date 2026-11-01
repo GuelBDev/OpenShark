@@ -2,7 +2,7 @@
 ; The payload is intentionally taken from the real application folder:
 ; C:\Users\migue\Downloads\AttackShark Software\OpenShark\dist\OpenShark.exe
 #define AppName "OpenShark"
-#define AppVersion "0.6.2"
+#define AppVersion "0.6.3"
 #define AppPublisher "GuelBDev"
 #define AppExeName "OpenShark.exe"
 #define AppSource "OpenShark\dist\OpenShark.exe"

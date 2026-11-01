@@ -4,6 +4,7 @@ import os
 import sys
 import ctypes
 from threading import Event
+from PySide6.QtCore import QTimer
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
@@ -11,6 +12,7 @@ from OpenShark.qt_ui import Dashboard, QApplication
 from OpenShark.monitor import MouseMonitor
 from OpenShark.tray import TrayService
 from OpenShark.preferences import load as load_preferences
+from OpenShark.memory import trim_working_set
 
 
 def main():
@@ -39,6 +41,9 @@ def main():
                        tray.set_enabled, preferences)
     if "--minimized" not in sys.argv:
         window.show()
+    else:
+        # Startup from Windows does not need to keep dashboard pages resident.
+        QTimer.singleShot(900, trim_working_set)
     try:
         application.exec()
     finally:

@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (QApplication, QWidget, QFrame, QLabel, QPushButto
 from .profiles import ProfileStore, BUTTON_ACTIONS, default_profile, validate_profile
 from .autostart import is_autostart_enabled, set_autostart
 from .preferences import save as save_preferences
+from .memory import trim_working_set
 from . import updates
 
 ORANGE = "#ff790d"
@@ -267,7 +268,7 @@ class Dashboard(QWidget):
         device.box.addWidget(self.device_name);device.box.addWidget(self.device_status)
         device.setFixedSize(278,62);header.addWidget(device);header.addStretch()
         header.addWidget(button("◎  Português (BR)"));header.addWidget(button("⚙",lambda:self.navigate("Configurações")))
-        header.addWidget(button("—",self.showMinimized));header.addWidget(button("×",self.close))
+        header.addWidget(button("—",self.move_to_background));header.addWidget(button("×",self.close))
         root.addLayout(header)
         row=QHBoxLayout();row.setSpacing(14)
         sidebar=QWidget();sidebar.setFixedWidth(184);nav=QVBoxLayout(sidebar);nav.setContentsMargins(12,8,0,0);nav.setSpacing(6)
@@ -614,6 +615,18 @@ class Dashboard(QWidget):
                     if kind=="automatic" and data and QMessageBox.question(self,"Atualização disponível",f"OpenShark {data['tag']} está disponível. Deseja atualizar agora?",QMessageBox.Yes|QMessageBox.No,QMessageBox.No)==QMessageBox.Yes:self.install_update()
                 else:self.update_label.setText(str(data))
 
+    def move_to_background(self):
+        """Hide to the tray and release dashboard pages from physical memory."""
+        if self.minimize_to_tray:
+            self.hide()
+            QTimer.singleShot(250, trim_working_set)
+        else:
+            self.showMinimized()
+
     def closeEvent(self,event):
-        if self.minimize_to_tray:event.ignore();self.hide()
-        else:self.on_close();event.accept()
+        if self.minimize_to_tray:
+            event.ignore()
+            self.move_to_background()
+        else:
+            self.on_close()
+            event.accept()

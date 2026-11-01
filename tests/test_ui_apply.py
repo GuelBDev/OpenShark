@@ -31,6 +31,21 @@ class FakeMonitor:
 
 
 class ApplyButtonTests(unittest.TestCase):
+    def test_minimize_to_tray_trims_dashboard_working_set(self):
+        app = QApplication.instance() or QApplication([])
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.object(qt_ui, "ProfileStore",
+                              lambda: ProfileStore(Path(directory) / "profiles.json")), \
+                 patch.object(qt_ui, "trim_working_set") as trim:
+                window = qt_ui.Dashboard(FakeMonitor(), Event(), Event(), lambda: None)
+                window.show()
+                window.move_to_background()
+                QTest.qWait(300)
+                self.assertFalse(window.isVisible())
+                trim.assert_called_once_with()
+                window.minimize_to_tray = False
+                window.close()
+
     def test_dpi_is_saved_only_after_confirmation(self):
         app = QApplication.instance() or QApplication([])
         with tempfile.TemporaryDirectory() as directory:
