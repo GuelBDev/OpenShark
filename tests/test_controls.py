@@ -84,6 +84,11 @@ class ProtocolTests(unittest.TestCase):
         self.assertEqual(int.from_bytes(power[11:13], "big"), sum(power[3:11]))
         self.assertEqual(buttons[21], 7)  # forward physical button = wire slot 7
 
+    def test_default_wheel_scroll_actions_follow_windows_direction(self):
+        buttons = build_buttons(default_profile("R1"))
+        self.assertEqual(buttons[51:57], bytes.fromhex("09 00 00 0a 00 00"))
+        self.assertEqual(int.from_bytes(buttons[57:59], "big"), sum(buttons[3:57]))
+
 
 class ProfileTests(unittest.TestCase):
     def test_round_trip_import_and_model_isolation(self):
